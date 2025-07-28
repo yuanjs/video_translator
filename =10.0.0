@@ -1,0 +1,17 @@
+Collecting ttkthemes
+  Using cached ttkthemes-3.2.2.tar.gz (891 kB)
+  Installing build dependencies: started
+  Installing build dependencies: finished with status 'done'
+  Getting requirements to build wheel: started
+  Getting requirements to build wheel: finished with status 'done'
+  Preparing metadata (pyproject.toml): started
+  Preparing metadata (pyproject.toml): finished with status 'done'
+Requirement already satisfied: Pillow in ./venv/lib/python3.13/site-packages (11.3.0)
+Building wheels for collected packages: ttkthemes
+  Building wheel for ttkthemes (pyproject.toml): started
+  Building wheel for ttkthemes (pyproject.toml): finished with status 'done'
+  Created wheel for ttkthemes: filename=ttkthemes-3.2.2-cp313-cp313-linux_x86_64.whl size=1810654 sha256=c0680e52cf5ab8b475f313c6a6dbe6fde1e63790d2e823ba7d30d2c160d9ba86
+  Stored in directory: /home/yuanjs/.cache/pip/wheels/b2/98/6f/0336ba4af1f5df7b35cfa8f4d1607cdc5af95d91af85d57a33
+Successfully built ttkthemes
+Installing collected packages: ttkthemes
+Successfully installed ttkthemes-3.2.2
