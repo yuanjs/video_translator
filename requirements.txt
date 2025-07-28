@@ -1,0 +1,43 @@
+# GUI and UI components
+ttkthemes==3.2.2
+Pillow==10.0.1
+
+# Video processing and subtitle extraction
+ffmpeg-python==0.2.0
+pysrt==1.1.2
+webvtt-py==0.4.6
+
+# AI Translation APIs
+openai==1.3.5
+anthropic==0.7.7
+google-cloud-translate==3.12.1
+azure-cognitiveservices-language-translation==3.0.0
+
+# HTTP requests and async support
+requests==2.31.0
+aiohttp==3.9.1
+httpx==0.25.2
+
+# Configuration and file handling
+PyYAML==6.0.1
+configparser==6.0.0
+charset-normalizer==3.3.2
+
+# Progress tracking and logging
+tqdm==4.66.1
+colorama==0.4.6
+
+# Utility libraries
+python-dotenv==1.0.0
+pathvalidate==3.2.0
+send2trash==1.8.2
+
+# Optional: Advanced subtitle processing
+ass==0.5.2
+subtitle-parser==1.0.0
+
+# Development and testing (optional)
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0
