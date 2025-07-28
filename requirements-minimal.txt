@@ -1,0 +1,47 @@
+# 视频翻译器最小依赖包
+# Video Translator Minimal Dependencies
+#
+# 此文件包含运行视频翻译器所需的最小且稳定的依赖集
+# This file contains the minimal and stable dependency set for video translator
+
+# 视频处理和字幕提取
+ffmpeg-python>=0.2.0
+pysrt>=1.1.2
+webvtt-py>=0.4.6
+pysubs2>=1.6.0
+
+# 核心AI翻译服务（稳定版本）
+openai>=1.12.0
+anthropic>=0.7.0
+
+# HTTP请求支持
+requests>=2.31.0
+aiohttp>=3.9.0
+httpx>=0.25.0
+
+# 配置和环境管理
+PyYAML>=6.0.0
+python-dotenv>=1.0.0
+
+# 进度显示和用户界面
+tqdm>=4.66.0
+colorama>=0.4.6
+rich>=13.0.0
+click>=8.0.0
+
+# 系统工具
+pathvalidate>=3.2.0
+charset-normalizer>=3.3.0
+psutil>=5.9.0
+
+# 字幕处理增强
+ass>=0.5.0
+
+# Python异步支持
+anyio>=3.7.0
+sniffio>=1.3.0
+
+# 注意：
+# - Azure和Google Cloud翻译需要单独安装和配置
+# - GUI功能需要安装 ttkthemes 和 Pillow
+# - 完整功能请参考 requirements.txt

@@ -11,7 +11,7 @@ webvtt-py==0.4.6
 openai>=1.12.0
 anthropic>=0.7.0
 google-cloud-translate>=3.12.0
-azure-cognitiveservices-language-translation>=3.0.0
+azure-ai-translation-text>=1.0.0
 
 # HTTP requests and async support
 requests>=2.31.0

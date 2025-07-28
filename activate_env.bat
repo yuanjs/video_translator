@@ -44,9 +44,18 @@ echo 🐍 Python版本:
 python --version
 
 rem 检查并安装依赖
-set "REQUIREMENTS_FILE=%PROJECT_ROOT%requirements.txt"
+set "REQUIREMENTS_FILE=%PROJECT_ROOT%requirements-minimal.txt"
+rem 如果最小依赖文件不存在，回退到核心依赖
+if not exist "%REQUIREMENTS_FILE%" (
+    set "REQUIREMENTS_FILE=%PROJECT_ROOT%requirements-core.txt"
+)
+rem 如果核心依赖也不存在，使用完整依赖
+if not exist "%REQUIREMENTS_FILE%" (
+    set "REQUIREMENTS_FILE=%PROJECT_ROOT%requirements.txt"
+)
 if exist "%REQUIREMENTS_FILE%" (
     echo 📦 检查依赖安装状态...
+    for %%f in ("%REQUIREMENTS_FILE%") do echo 📋 使用依赖文件: %%~nxf
 
     rem 检查pip包列表，如果为空或很少则需要安装依赖
     for /f %%i in ('pip list ^| find /c /v ""') do set PACKAGE_COUNT=%%i
@@ -54,6 +63,7 @@ if exist "%REQUIREMENTS_FILE%" (
     if !PACKAGE_COUNT! lss 10 (
         echo 🔧 安装/更新项目依赖...
         python -m pip install --upgrade pip
+        echo 📥 安装依赖包（这可能需要几分钟）...
         pip install -r "%REQUIREMENTS_FILE%"
 
         if !errorlevel! equ 0 (
@@ -82,6 +92,11 @@ echo   python run.py --cli              # 启动命令行界面
 echo   python test_providers.py         # 测试AI平台
 echo   python setup_platforms.py       # 配置新平台
 echo   python demo_new_platforms.py    # 查看演示
+echo.
+echo 🔧 依赖管理：
+echo   pip install -r requirements-minimal.txt   # 最小依赖（推荐）
+echo   pip install -r requirements-core.txt      # 核心功能
+echo   pip install -r requirements.txt           # 完整功能
 echo.
 echo 💡 提示: 使用 'deactivate' 命令退出虚拟环境
 echo.

@@ -14,6 +14,7 @@ pysubs2>=1.6.0
 openai>=1.12.0
 anthropic>=0.7.0
 google-cloud-translate>=3.12.0
+azure-ai-translation-text>=1.0.0
 requests>=2.31.0
 
 # 异步HTTP支持

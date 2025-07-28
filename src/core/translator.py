@@ -17,7 +17,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 # AI平台客户端
 import openai
 import anthropic
-from google.cloud import translate_v2 as translate
+try:
+    from google.cloud import translate_v2 as translate
+    GOOGLE_AVAILABLE = True
+except ImportError:
+    GOOGLE_AVAILABLE = False
 import requests
 
 from .subtitle_extractor import SubtitleFile, SubtitleSegment
@@ -262,6 +266,8 @@ class GoogleTranslator(BaseTranslator):
 
     def _initialize_client(self):
         """初始化Google翻译客户端"""
+        if not GOOGLE_AVAILABLE:
+            raise ImportError("Google Cloud Translation库未安装，请运行: pip install google-cloud-translate")
         self.client = translate.Client()
 
     @retry_on_failure(max_retries=3, delay=1.0)
@@ -323,12 +329,18 @@ class GoogleTranslator(BaseTranslator):
 
 
 class AzureTranslator(BaseTranslator):
-    """Azure翻译器"""
+    """Azure翻译器 - 使用REST API"""
 
     def _initialize_client(self):
         """初始化Azure翻译客户端"""
         self.endpoint = self.config.get('api.azure.endpoint', 'https://api.cognitive.microsofttranslator.com')
         self.region = self.config.get('api.azure.region', 'eastus')
+
+        # 验证必需配置
+        if not self.api_key:
+            raise ValueError("Azure翻译器需要API密钥")
+        if not self.region:
+            raise ValueError("Azure翻译器需要区域配置")
 
     @retry_on_failure(max_retries=3, delay=1.0)
     async def translate(self, request: TranslationRequest) -> TranslationResult:
@@ -555,7 +567,10 @@ class TranslationManager:
                 provider = TranslationProvider(provider_key)
                 api_key = self.config.get_api_key(provider_key)
 
-                if not api_key:
+                # 对于Ollama，不需要真实API密钥
+                if provider_key == 'ollama':
+                    api_key = api_key or 'no-key-needed'
+                elif not api_key:
                     logger.warning(f"未配置 {provider_key} 的API密钥")
                     continue
 
@@ -564,6 +579,8 @@ class TranslationManager:
                     self.translators[provider] = translator
                     logger.info(f"已初始化 {provider_key} 翻译器")
 
+            except ImportError as e:
+                logger.warning(f"{provider_key} 依赖库未安装: {e}")
             except Exception as e:
                 logger.error(f"初始化 {provider_key} 翻译器失败: {e}")
 

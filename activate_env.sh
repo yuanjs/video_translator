@@ -50,14 +50,25 @@ echo -e "${BLUE}🐍 Python版本:${NC}"
 python --version
 
 # 检查并安装依赖
-REQUIREMENTS_FILE="$PROJECT_ROOT/requirements.txt"
+REQUIREMENTS_FILE="$PROJECT_ROOT/requirements-minimal.txt"
+# 如果最小依赖文件不存在，回退到核心依赖
+if [ ! -f "$REQUIREMENTS_FILE" ]; then
+    REQUIREMENTS_FILE="$PROJECT_ROOT/requirements-core.txt"
+fi
+# 如果核心依赖也不存在，使用完整依赖
+if [ ! -f "$REQUIREMENTS_FILE" ]; then
+    REQUIREMENTS_FILE="$PROJECT_ROOT/requirements.txt"
+fi
+
 if [ -f "$REQUIREMENTS_FILE" ]; then
     echo -e "${BLUE}📦 检查依赖安装状态...${NC}"
+    echo -e "${BLUE}📋 使用依赖文件: $(basename "$REQUIREMENTS_FILE")${NC}"
 
     # 检查是否需要安装依赖
     if [ ! -f "$VENV_PATH/pyvenv.cfg" ] || [ "$REQUIREMENTS_FILE" -nt "$VENV_PATH/pyvenv.cfg" ]; then
         echo -e "${YELLOW}🔧 安装/更新项目依赖...${NC}"
         pip install --upgrade pip
+        echo -e "${BLUE}📥 安装依赖包（这可能需要几分钟）...${NC}"
         pip install -r "$REQUIREMENTS_FILE"
 
         if [ $? -eq 0 ]; then
@@ -84,6 +95,11 @@ echo "  python run.py --cli              # 启动命令行界面"
 echo "  python test_providers.py         # 测试AI平台"
 echo "  python setup_platforms.py       # 配置新平台"
 echo "  python demo_new_platforms.py    # 查看演示"
+echo ""
+echo "🔧 依赖管理："
+echo "  pip install -r requirements-minimal.txt   # 最小依赖（推荐）"
+echo "  pip install -r requirements-core.txt      # 核心功能"
+echo "  pip install -r requirements.txt           # 完整功能"
 echo ""
 echo -e "${YELLOW}💡 提示: 使用 'deactivate' 命令退出虚拟环境${NC}"
 echo ""
