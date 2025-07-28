@@ -8,7 +8,7 @@ pysrt==1.1.2
 webvtt-py==0.4.6
 
 # AI Translation APIs
-openai==1.3.5
+openai>=1.12.0
 anthropic==0.7.7
 google-cloud-translate==3.12.1
 azure-cognitiveservices-language-translation==3.0.0
