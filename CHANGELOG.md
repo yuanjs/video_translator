@@ -16,6 +16,68 @@
 - [ ] 批量任务队列管理
 - [ ] Web界面版本
 
+## [1.1.0] - 2024-01-15
+
+### 🆕 新增 AI 平台支持
+
+#### 新增功能 Added
+- **DeepSeek AI 支持**
+  - 集成DeepSeek-Chat和DeepSeek-Coder模型
+  - 支持DeepSeek API完整功能
+  - 优化的中文翻译质量
+  - 配置简单，性价比高
+
+- **Ollama 本地部署支持**
+  - 支持本地运行的开源大语言模型
+  - 无需API密钥，完全离线使用
+  - 支持多种模型：LLaMA2、CodeLLaMA、Mistral、Qwen等
+  - 可自定义模型和服务器地址
+  - 适合隐私敏感的翻译需求
+
+- **增强的配置管理**
+  - 新增 `api_keys_example.yaml` 配置模板
+  - 支持环境变量配置所有AI平台
+  - 改进的错误处理和连接检测
+  - API配置验证功能
+
+- **测试工具**
+  - 新增 `test_providers.py` 测试脚本
+  - 支持单独测试各个AI平台
+  - 配置状态检查功能
+  - 性能和质量对比测试
+
+#### 改进功能 Changed
+- 更新配置系统以支持新的AI平台
+- 优化翻译管理器的错误处理
+- 改进API密钥管理和验证机制
+- 更新用户界面以显示新的翻译选项
+
+#### 文档更新 Documentation
+- 更新README.md，包含新平台配置指南
+- 添加DeepSeek和Ollama的详细设置说明
+- 新增本地部署Ollama的完整教程
+- 更新API配置示例和最佳实践
+
+#### 技术改进 Technical
+- 扩展TranslationProvider枚举支持新平台
+- 新增DeepSeekTranslator和OllamaTranslator类
+- 改进异步翻译处理性能
+- 增强错误日志记录和调试信息
+
+### 🔧 支持的AI平台 Supported AI Platforms
+- OpenAI GPT (GPT-3.5, GPT-4)
+- Anthropic Claude (Claude-3系列)
+- Google Cloud Translation
+- Azure Translator
+- **DeepSeek** (deepseek-chat, deepseek-coder) 🆕
+- **Ollama** (llama2, mistral, qwen, 等) 🆕
+
+### ⚡ 性能优化 Performance
+- 本地Ollama支持实现零延迟翻译
+- DeepSeek API优化的请求处理
+- 改进的并发翻译处理
+- 更好的内存使用管理
+
 ## [1.0.0] - 2024-01-01
 
 ### 🎉 首次发布
@@ -64,6 +126,7 @@
 - Windows 10+ 
 - macOS 10.14+
 - Linux (Ubuntu 18.04+, CentOS 7+, Fedora 30+)
+- 本地部署支持 (通过Ollama)
 
 #### 支持的语言 Languages
 - 简体中文 (zh-CN)

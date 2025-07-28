@@ -21,6 +21,8 @@
 - **Anthropic Claude**：支持Claude-3系列模型
 - **Google Translate**：支持Google Cloud Translation API
 - **Azure Translator**：支持Microsoft Azure翻译服务
+- **DeepSeek**：支持DeepSeek-Chat和DeepSeek-Coder模型 🆕
+- **Ollama**：支持本地部署的开源大语言模型 🆕
 - 智能分段翻译，保持上下文连贯性
 
 ### 🌐 翻译选项
@@ -58,11 +60,16 @@ pip install -r requirements.txt
 
 ### 3. 配置API密钥
 ```bash
-# 复制环境变量模板
-cp .env.template .env
+# 复制API密钥配置模板
+cp api_keys_example.yaml api_keys.yaml
 
-# 编辑.env文件，填入您的API密钥
+# 编辑api_keys.yaml文件，填入您的API密钥
 # 至少需要配置一个AI翻译服务的API密钥
+
+# 或者使用环境变量方式
+export OPENAI_API_KEY="your-openai-key"
+export DEEPSEEK_API_KEY="your-deepseek-key"
+# Ollama无需API密钥，但需要本地服务运行
 ```
 
 ### 4. 开始使用
@@ -153,6 +160,13 @@ GOOGLE_APPLICATION_CREDENTIALS=path/to/your/service-account.json
 # Azure Translator API
 AZURE_TRANSLATOR_KEY=your_azure_key
 AZURE_TRANSLATOR_REGION=your_region
+
+# DeepSeek API (新增)
+DEEPSEEK_API_KEY=your_deepseek_api_key
+
+# Ollama (本地部署，无需API密钥)
+# 确保Ollama服务运行在 http://localhost:11434
+OLLAMA_BASE_URL=http://localhost:11434/v1
 ```
 
 ### 配置文件
@@ -163,9 +177,30 @@ AZURE_TRANSLATOR_REGION=your_region
 # 默认翻译设置
 translation:
   target_language: "zh-CN"  # 目标语言
-  provider: "openai"        # AI翻译提供商
+  provider: "openai"        # AI翻译提供商 (openai/anthropic/google/azure/deepseek/ollama)
   model: "gpt-3.5-turbo"   # 使用的模型
   output_format: "bilingual" # 输出格式：bilingual/monolingual
+
+# API配置
+api:
+  # DeepSeek配置
+  deepseek:
+    base_url: "https://api.deepseek.com/v1"
+    models:
+      - "deepseek-chat"
+      - "deepseek-coder"
+  
+  # Ollama配置 (本地部署)
+  ollama:
+    base_url: "http://localhost:11434/v1"
+    models:
+      - "llama2"
+      - "llama2:13b"
+      - "codellama"
+      - "mistral"
+      - "qwen"
+      - "gemma"
+```
   
 # 字幕设置
 subtitle:
@@ -367,6 +402,98 @@ video_translator/
 3. 提交更改
 4. 推送到分支
 5. 提交Pull Request
+
+## 🆕 新增AI平台配置指南
+
+### DeepSeek 配置
+
+**1. 获取API密钥**
+- 访问 [DeepSeek开放平台](https://platform.deepseek.com/api_keys)
+- 注册并创建API密钥
+
+**2. 配置密钥**
+```bash
+# 方式1：环境变量
+export DEEPSEEK_API_KEY="sk-your-deepseek-api-key-here"
+
+# 方式2：在api_keys.yaml中配置  
+deepseek:
+  api_key: "sk-your-deepseek-api-key-here"
+```
+
+**3. 使用DeepSeek**
+```bash
+# 在config.yaml中设置
+translation:
+  provider: "deepseek"
+  model: "deepseek-chat"  # 或 "deepseek-coder"
+```
+
+### Ollama 本地部署配置
+
+**1. 安装Ollama**
+```bash
+# Linux/Mac
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# Windows
+# 下载安装包：https://ollama.ai/download/windows
+```
+
+**2. 启动Ollama服务**
+```bash
+# 启动Ollama服务
+ollama serve
+
+# 在新终端中拉取模型
+ollama pull llama2        # 基础模型
+ollama pull llama2:13b    # 13B参数版本
+ollama pull qwen          # 通义千问
+ollama pull mistral       # Mistral模型
+```
+
+**3. 验证安装**
+```bash
+# 测试模型
+ollama run llama2 "Hello, how are you?"
+
+# 查看已安装的模型
+ollama list
+```
+
+**4. 配置使用**
+```yaml
+# config.yaml
+translation:
+  provider: "ollama"
+  model: "llama2"  # 使用已安装的模型
+  
+api:
+  ollama:
+    base_url: "http://localhost:11434/v1"  # 默认地址
+```
+
+**注意事项：**
+- Ollama无需API密钥，但需要本地运行服务
+- 首次使用需要下载模型文件（几GB大小）
+- 推荐至少8GB内存用于运行大模型
+- 可以通过修改`base_url`连接远程Ollama服务
+
+### 测试新平台
+
+使用提供的测试脚本验证配置：
+
+```bash
+# 测试所有平台
+python test_providers.py
+
+# 测试特定平台
+python test_providers.py deepseek
+python test_providers.py ollama
+
+# 检查配置状态
+python test_providers.py check
+```
 
 ## 许可证
 

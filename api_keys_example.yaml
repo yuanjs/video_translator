@@ -1,0 +1,70 @@
+# API密钥配置示例文件
+# API Keys Configuration Example
+#
+# 复制此文件为 api_keys.yaml 并填入你的真实API密钥
+# Copy this file as api_keys.yaml and fill in your real API keys
+#
+# 注意：此文件包含敏感信息，请勿提交到版本控制系统
+# Warning: This file contains sensitive information, do not commit to version control
+
+# OpenAI API配置
+openai:
+  api_key: "sk-your-openai-api-key-here"
+  # 可选：自定义API基础URL（用于代理或其他兼容服务）
+  # base_url: "https://api.openai.com/v1"
+
+# Anthropic Claude API配置
+anthropic:
+  api_key: "sk-ant-your-anthropic-api-key-here"
+
+# Google Cloud Translation API配置
+google:
+  # 方式1：使用API密钥
+  api_key: "your-google-cloud-api-key-here"
+  # 方式2：使用服务账户JSON文件路径
+  # credentials_file: "path/to/your/service-account.json"
+  project_id: "your-google-cloud-project-id"
+
+# Azure Translation API配置
+azure:
+  api_key: "your-azure-translator-key-here"
+  endpoint: "https://api.cognitive.microsofttranslator.com"
+  region: "your-azure-region" # 例如: eastus, westus2
+
+# DeepSeek API配置
+deepseek:
+  api_key: "sk-your-deepseek-api-key-here"
+  # DeepSeek API基础URL
+  base_url: "https://api.deepseek.com/v1"
+
+# Ollama配置（本地部署，不需要API密钥）
+ollama:
+  # Ollama服务器地址
+  base_url: "http://localhost:11434/v1"
+  # 如果Ollama运行在其他地址，修改上面的URL
+  # 例如：
+  # base_url: "http://192.168.1.100:11434/v1"  # 局域网内其他机器
+  # base_url: "http://your-server.com:11434/v1"  # 远程服务器
+
+  # Ollama不需要API密钥，但需要确保:
+  # 1. Ollama服务正在运行
+  # 2. 已安装所需的模型 (ollama pull llama2)
+  # 3. 服务器地址可访问
+# 环境变量支持
+# 你也可以通过环境变量设置API密钥:
+#
+# export OPENAI_API_KEY="your-key"
+# export ANTHROPIC_API_KEY="your-key"
+# export GOOGLE_API_KEY="your-key"
+# export AZURE_TRANSLATOR_KEY="your-key"
+# export DEEPSEEK_API_KEY="your-key"
+# export OLLAMA_BASE_URL="http://localhost:11434/v1"
+
+# 获取API密钥的方法:
+#
+# OpenAI: https://platform.openai.com/api-keys
+# Anthropic: https://console.anthropic.com/
+# Google Cloud: https://console.cloud.google.com/apis/credentials
+# Azure: https://portal.azure.com/ (认知服务 -> 翻译器)
+# DeepSeek: https://platform.deepseek.com/api_keys
+# Ollama: 本地安装，访问 https://ollama.ai/

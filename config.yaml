@@ -6,7 +6,7 @@ translation:
   # 默认目标语言 (ISO 639-1 语言代码)
   target_language: "zh-CN"
 
-  # 默认翻译提供商 (openai, anthropic, google, azure)
+  # 默认翻译提供商 (openai, anthropic, google, azure, deepseek, ollama)
   provider: "openai"
 
   # 默认模型
@@ -143,6 +143,27 @@ api:
   azure:
     endpoint: null
     region: "eastus"
+
+  # DeepSeek配置
+  deepseek:
+    base_url: "https://api.deepseek.com/v1"
+    models:
+      - "deepseek-chat"
+      - "deepseek-coder"
+
+  # Ollama配置 (本地部署)
+  ollama:
+    base_url: "http://localhost:11434/v1"
+    models:
+      - "llama2"
+      - "llama2:13b"
+      - "llama2:70b"
+      - "codellama"
+      - "codellama:13b"
+      - "mistral"
+      - "mixtral"
+      - "qwen"
+      - "gemma"
 
 # 输出设置
 output:

@@ -221,6 +221,13 @@ GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json
 # Azure Translator
 AZURE_TRANSLATOR_KEY=your_azure_key_here
 AZURE_TRANSLATOR_REGION=your_region_here
+
+# DeepSeek API密钥 (新增)
+DEEPSEEK_API_KEY=your_deepseek_api_key_here
+
+# Ollama (本地部署，无需API密钥)
+# 确保Ollama服务运行在默认端口
+OLLAMA_BASE_URL=http://localhost:11434/v1
 ```
 
 ### 2. API密钥获取方法
@@ -248,6 +255,63 @@ AZURE_TRANSLATOR_REGION=your_region_here
 #### Azure Translator
 1. 在 [Azure Portal](https://portal.azure.com/) 创建Translator资源
 2. 获取密钥和区域信息
+
+#### DeepSeek API密钥 (新增)
+1. 访问 [DeepSeek开放平台](https://platform.deepseek.com/api_keys)
+2. 注册/登录账户
+3. 创建新的API密钥
+4. 复制密钥到 `.env` 文件
+5. 注意：DeepSeek提供高性价比的AI翻译服务
+
+#### Ollama 本地部署 (新增)
+**优势：**
+- 完全离线运行，无需API密钥
+- 隐私保护，数据不上传
+- 支持多种开源模型
+- 一次安装，永久使用
+
+**安装步骤：**
+
+1. **安装Ollama**
+   ```bash
+   # Linux/macOS
+   curl -fsSL https://ollama.ai/install.sh | sh
+   
+   # Windows
+   # 下载安装包：https://ollama.ai/download/windows
+   ```
+
+2. **启动Ollama服务**
+   ```bash
+   # 启动服务
+   ollama serve
+   ```
+
+3. **安装翻译模型**
+   ```bash
+   # 推荐的翻译模型
+   ollama pull llama2        # 基础模型 (3.8GB)
+   ollama pull qwen          # 通义千问 (适合中文, 4.1GB)
+   ollama pull mistral       # Mistral模型 (4.1GB)
+   
+   # 高级模型（需要更多内存）
+   ollama pull llama2:13b    # 13B参数版本 (7.3GB)
+   ollama pull codellama     # 代码翻译专用 (3.8GB)
+   ```
+
+4. **验证安装**
+   ```bash
+   # 测试模型
+   ollama run llama2 "Translate: Hello World"
+   
+   # 查看已安装模型
+   ollama list
+   ```
+
+5. **配置要求**
+   - 最低8GB RAM (推荐16GB+)
+   - 每个模型需要3-8GB存储空间
+   - 首次下载模型需要稳定网络连接
 3. 填入 `.env` 文件
 
 ## ✅ 验证安装

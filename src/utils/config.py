@@ -18,15 +18,32 @@ class Config:
 
     def __init__(self, config_file: str = "config.yaml"):
         self.config_file = Path(config_file)
+        self.api_keys_file = Path("api_keys.yaml")
         self.config_data = {}
+        self.api_keys_data = {}
         self._load_env()
         self._load_config()
+        self._load_api_keys()
 
     def _load_env(self):
         """加载环境变量"""
         env_file = Path('.env')
         if env_file.exists():
             load_dotenv(env_file)
+
+    def _load_api_keys(self):
+        """加载API密钥配置文件"""
+        if self.api_keys_file.exists():
+            try:
+                with open(self.api_keys_file, 'r', encoding='utf-8') as f:
+                    self.api_keys_data = yaml.safe_load(f) or {}
+                logger.info(f"API密钥配置文件已加载: {self.api_keys_file}")
+            except Exception as e:
+                logger.error(f"加载API密钥配置文件失败: {e}")
+                self.api_keys_data = {}
+        else:
+            self.api_keys_data = {}
+            logger.info("未找到API密钥配置文件，将使用环境变量")
 
     def _get_default_config(self) -> Dict[str, Any]:
         """获取默认配置"""
@@ -83,6 +100,14 @@ class Config:
                 'azure': {
                     'endpoint': None,
                     'region': 'eastus'
+                },
+                'deepseek': {
+                    'base_url': 'https://api.deepseek.com/v1',
+                    'models': ['deepseek-chat', 'deepseek-coder']
+                },
+                'ollama': {
+                    'base_url': 'http://localhost:11434/v1',
+                    'models': ['llama2', 'llama2:13b', 'llama2:70b', 'codellama', 'mistral', 'mixtral', 'qwen', 'gemma']
                 }
             },
             'output': {
@@ -176,16 +201,36 @@ class Config:
 
     def get_api_key(self, provider: str) -> Optional[str]:
         """获取API密钥"""
+        # 首先尝试从YAML配置文件获取
+        if provider in self.api_keys_data:
+            provider_config = self.api_keys_data[provider]
+            if isinstance(provider_config, dict):
+                api_key = provider_config.get('api_key')
+                if api_key:
+                    return api_key
+            elif isinstance(provider_config, str):
+                return provider_config
+
+        # 然后尝试从环境变量获取
         key_map = {
             'openai': 'OPENAI_API_KEY',
             'anthropic': 'ANTHROPIC_API_KEY',
             'google': 'GOOGLE_APPLICATION_CREDENTIALS',
-            'azure': 'AZURE_TRANSLATOR_KEY'
+            'azure': 'AZURE_TRANSLATOR_KEY',
+            'deepseek': 'DEEPSEEK_API_KEY',
+            'ollama': 'OLLAMA_BASE_URL'  # Ollama不需要API密钥，但可以通过环境变量配置URL
         }
 
         env_key = key_map.get(provider)
         if env_key:
-            return os.getenv(env_key)
+            env_value = os.getenv(env_key)
+            if env_value:
+                return env_value
+
+        # 对于Ollama，如果没有环境变量，返回默认值表示不需要真实API密钥
+        if provider == 'ollama':
+            return 'no-key-needed'
+
         return None
 
     def validate_api_config(self, provider: str) -> bool:
@@ -193,6 +238,9 @@ class Config:
         api_key = self.get_api_key(provider)
 
         if not api_key:
+            # Ollama不需要真实API密钥
+            if provider == 'ollama':
+                return True
             logger.warning(f"未找到 {provider} 的API密钥")
             return False
 
@@ -291,6 +339,18 @@ class Config:
                 'models': ['azure-translator'],
                 'requires_key': True,
                 'description': 'Microsoft Azure认知服务翻译'
+            },
+            'deepseek': {
+                'name': 'DeepSeek',
+                'models': self.get('api.deepseek.models', []),
+                'requires_key': True,
+                'description': '使用DeepSeek模型进行高质量翻译'
+            },
+            'ollama': {
+                'name': 'Ollama',
+                'models': self.get('api.ollama.models', []),
+                'requires_key': False,
+                'description': '本地部署的开源大语言模型'
             }
         }
 

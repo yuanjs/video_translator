@@ -41,6 +41,8 @@ class TranslationProvider(Enum):
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
     AZURE = "azure"
+    DEEPSEEK = "deepseek"
+    OLLAMA = "ollama"
 
 
 @dataclass
@@ -397,6 +399,145 @@ class AzureTranslator(BaseTranslator):
         return mapping.get(lang_code, lang_code)
 
 
+class DeepSeekTranslator(BaseTranslator):
+    """DeepSeek翻译器"""
+
+    def _initialize_client(self):
+        """初始化DeepSeek客户端"""
+        base_url = self.config.get('api.deepseek.base_url', 'https://api.deepseek.com/v1')
+        self.client = openai.OpenAI(
+            api_key=self.api_key,
+            base_url=base_url
+        )
+
+    @retry_on_failure(max_retries=3, delay=1.0)
+    async def translate(self, request: TranslationRequest) -> TranslationResult:
+        """使用DeepSeek进行翻译"""
+        start_time = time.time()
+
+        try:
+            # 获取模型配置
+            models = self.config.get('api.deepseek.models', ['deepseek-chat'])
+            model = self.config.get('translation.model', models[0])
+
+            # 如果配置的模型不在DeepSeek支持列表中，使用默认模型
+            if model not in models:
+                model = models[0]
+
+            # 构建翻译提示
+            prompt = self._prepare_prompt(request.text, request.target_language, request.context)
+
+            # 调用DeepSeek API
+            response = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=self.config.get('translation.max_tokens', 2000),
+                    temperature=self.config.get('translation.temperature', 0.3),
+                    timeout=self.config.get('translation.timeout', 30)
+                )
+            )
+
+            # 提取翻译结果
+            translated_text = self._extract_translation(response.choices[0].message.content)
+            processing_time = time.time() - start_time
+
+            return TranslationResult(
+                original_text=request.text,
+                translated_text=translated_text,
+                source_language=request.source_language,
+                target_language=request.target_language,
+                provider=self.provider.value,
+                model=model,
+                processing_time=processing_time,
+                token_count=response.usage.total_tokens if response.usage else 0
+            )
+
+        except Exception as e:
+            logger.error(f"DeepSeek翻译失败: {e}")
+            return TranslationResult(
+                original_text=request.text,
+                translated_text="",
+                source_language=request.source_language,
+                target_language=request.target_language,
+                provider=self.provider.value,
+                model=model if 'model' in locals() else 'deepseek-chat',
+                processing_time=time.time() - start_time,
+                error=str(e)
+            )
+
+
+class OllamaTranslator(BaseTranslator):
+    """Ollama翻译器（本地部署）"""
+
+    def _initialize_client(self):
+        """初始化Ollama客户端"""
+        base_url = self.config.get('api.ollama.base_url', 'http://localhost:11434/v1')
+        # Ollama使用OpenAI兼容的API，但不需要真实的API密钥
+        self.client = openai.OpenAI(
+            api_key="ollama",  # Ollama不需要真实API密钥
+            base_url=base_url
+        )
+
+    @retry_on_failure(max_retries=3, delay=1.0)
+    async def translate(self, request: TranslationRequest) -> TranslationResult:
+        """使用Ollama进行翻译"""
+        start_time = time.time()
+
+        try:
+            # 获取模型配置
+            models = self.config.get('api.ollama.models', ['llama2'])
+            model = self.config.get('translation.model', models[0])
+
+            # 如果配置的模型不在Ollama支持列表中，使用默认模型
+            if model not in models:
+                model = models[0]
+
+            # 构建翻译提示
+            prompt = self._prepare_prompt(request.text, request.target_language, request.context)
+
+            # 调用Ollama API
+            response = await asyncio.get_event_loop().run_in_executor(
+                None,
+                lambda: self.client.chat.completions.create(
+                    model=model,
+                    messages=[{"role": "user", "content": prompt}],
+                    max_tokens=self.config.get('translation.max_tokens', 2000),
+                    temperature=self.config.get('translation.temperature', 0.3),
+                    timeout=self.config.get('translation.timeout', 60)  # Ollama可能需要更长时间
+                )
+            )
+
+            # 提取翻译结果
+            translated_text = self._extract_translation(response.choices[0].message.content)
+            processing_time = time.time() - start_time
+
+            return TranslationResult(
+                original_text=request.text,
+                translated_text=translated_text,
+                source_language=request.source_language,
+                target_language=request.target_language,
+                provider=self.provider.value,
+                model=model,
+                processing_time=processing_time,
+                token_count=response.usage.total_tokens if response.usage else 0
+            )
+
+        except Exception as e:
+            logger.error(f"Ollama翻译失败: {e}")
+            return TranslationResult(
+                original_text=request.text,
+                translated_text="",
+                source_language=request.source_language,
+                target_language=request.target_language,
+                provider=self.provider.value,
+                model=model if 'model' in locals() else 'llama2',
+                processing_time=time.time() - start_time,
+                error=str(e)
+            )
+
+
 class TranslationManager:
     """翻译管理器"""
 
@@ -432,7 +573,9 @@ class TranslationManager:
             TranslationProvider.OPENAI: OpenAITranslator,
             TranslationProvider.ANTHROPIC: AnthropicTranslator,
             TranslationProvider.GOOGLE: GoogleTranslator,
-            TranslationProvider.AZURE: AzureTranslator
+            TranslationProvider.AZURE: AzureTranslator,
+            TranslationProvider.DEEPSEEK: DeepSeekTranslator,
+            TranslationProvider.OLLAMA: OllamaTranslator
         }
 
         translator_class = translator_classes.get(provider)
