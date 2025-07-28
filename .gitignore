@@ -151,3 +151,4 @@ uploads/
 config_local.yaml
 .secrets
 api_keys.txt
+api_keys.yaml
