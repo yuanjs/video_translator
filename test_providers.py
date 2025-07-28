@@ -13,7 +13,7 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root / "src"))
 
-from core.translator import (
+from src.core.translator import (
     TranslationManager,
     TranslationProvider,
     TranslationRequest,
@@ -22,8 +22,8 @@ from core.translator import (
     DeepSeekTranslator,
     OllamaTranslator
 )
-from utils.config import get_config
-from utils.logger import get_logger
+from src.utils.config import get_config
+from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
 

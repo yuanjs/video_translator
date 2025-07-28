@@ -190,14 +190,29 @@ class LoggerManager:
 
     def _parse_size(self, size_str: str) -> int:
         """解析文件大小字符串"""
-        size_str = size_str.upper()
-        multipliers = {'B': 1, 'KB': 1024, 'MB': 1024**2, 'GB': 1024**3}
+        size_str = size_str.upper().strip()
+
+        # 支持多种格式：10MB, 10M, 10KB, 10K, 10GB, 10G, 10B, 10
+        multipliers = {
+            'GB': 1024**3, 'G': 1024**3,
+            'MB': 1024**2, 'M': 1024**2,
+            'KB': 1024, 'K': 1024,
+            'B': 1
+        }
 
         for suffix, multiplier in multipliers.items():
             if size_str.endswith(suffix):
-                return int(size_str[:-len(suffix)]) * multiplier
+                number_part = size_str[:-len(suffix)].strip()
+                try:
+                    return int(number_part) * multiplier
+                except ValueError:
+                    return int(float(number_part)) * multiplier
 
-        return int(size_str)
+        # 如果没有单位，默认为字节
+        try:
+            return int(size_str)
+        except ValueError:
+            return int(float(size_str))
 
     def get_logger(self, name: str) -> logging.Logger:
         """获取或创建日志记录器"""
