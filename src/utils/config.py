@@ -6,7 +6,7 @@
 import os
 import yaml
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from dotenv import load_dotenv
 import logging
 
@@ -240,7 +240,18 @@ class Config:
         if not api_key:
             # Ollama不需要真实API密钥
             if provider == 'ollama':
-                return True
+                # 尝试检查Ollama服务是否可用
+                try:
+                    import requests
+                    base_url = self.get('api.ollama.base_url', 'http://localhost:11434/v1')
+                    response = requests.get(f"{base_url.rstrip('/v1')}/api/version", timeout=2)
+                    if response.status_code == 200:
+                        return True
+                    logger.warning(f"Ollama服务不可用: {response.status_code}")
+                    return False
+                except Exception as e:
+                    logger.warning(f"Ollama服务不可访问: {e}")
+                    return False
             logger.warning(f"未找到 {provider} 的API密钥")
             return False
 
@@ -250,6 +261,25 @@ class Config:
             if not credentials_path.exists():
                 logger.warning(f"Google服务账户文件不存在: {api_key}")
                 return False
+
+        # 空API密钥视为无效
+        if isinstance(api_key, str) and not api_key.strip():
+            logger.warning(f"{provider} API密钥为空")
+            return False
+
+        # 检查是否为示例/默认密钥
+        example_keys = [
+            "your-api-key-here",
+            "sk-your-openai-api-key-here",
+            "your-azure-translator-key-here",
+            "sk-ant-your-anthropic-api-key-here",
+            "your-deepseek-api-key-here",
+            "sk-your-deepseek-api-key-here"
+        ]
+
+        if isinstance(api_key, str) and any(example in api_key.lower() for example in example_keys):
+            logger.warning(f"{provider} 使用了示例API密钥")
+            return False
 
         return True
 
@@ -315,7 +345,7 @@ class Config:
 
     def get_translation_providers(self) -> Dict[str, Dict[str, Any]]:
         """获取翻译提供商信息"""
-        return {
+        providers_info = {
             'openai': {
                 'name': 'OpenAI GPT',
                 'models': self.get('api.openai.models', []),
@@ -354,6 +384,12 @@ class Config:
             }
         }
 
+        # 更新是否可用的状态
+        for provider_key in providers_info:
+            providers_info[provider_key]['available'] = self.validate_api_config(provider_key)
+
+        return providers_info
+
     def update_last_used_dir(self, directory: str):
         """更新最后使用的目录"""
         if self.get('ui.remember_last_dir', True):
@@ -362,6 +398,14 @@ class Config:
     def get_last_used_dir(self) -> str:
         """获取最后使用的目录"""
         return self.get('ui.last_used_dir', os.path.expanduser('~'))
+
+    def get_available_providers(self) -> List[str]:
+        """获取可用的翻译提供商列表"""
+        providers = []
+        for provider, info in self.get_translation_providers().items():
+            if info.get('available', False):
+                providers.append(provider)
+        return providers
 
     def reset_to_defaults(self):
         """重置为默认配置"""

@@ -74,8 +74,14 @@ class VideoTranslatorCLI:
             formatter_class=argparse.RawDescriptionHelpFormatter,
             epilog="""
 使用示例:
-  # 翻译单个视频文件
-  python cli.py -i video.mp4 -o output.srt -l zh-CN
+  # 查看视频中的字幕轨道
+  python cli.py --list-subtitles video.mp4
+
+  # 翻译指定的字幕轨道
+  python cli.py -i video.mp4 --subtitle-index 0 -o output.srt -l zh-CN
+
+  # 翻译所有字幕轨道
+  python cli.py -i video.mp4 --extract-all-subtitles --output-dir ./output -l zh-CN
 
   # 批量翻译目录下所有视频
   python cli.py --input-dir /path/to/videos --output-dir /path/to/output -l zh-CN
@@ -150,12 +156,12 @@ class VideoTranslatorCLI:
             "--subtitle-index",
             type=int,
             default=0,
-            help="要提取的字幕轨道索引（默认: 0）"
+            help="要提取的字幕轨道索引（默认: 0）。使用 --list-subtitles 查看可用轨道"
         )
         parser.add_argument(
             "--extract-all-subtitles",
             action="store_true",
-            help="提取所有字幕轨道"
+            help="提取并翻译所有字幕轨道（忽略 --subtitle-index 选项）"
         )
 
         # 其他选项
@@ -206,7 +212,11 @@ class VideoTranslatorCLI:
         )
         parser.add_argument(
             "--info",
-            help="显示视频文件信息"
+            help="显示视频文件的详细信息（包括字幕轨道）"
+        )
+        parser.add_argument(
+            "--list-subtitles",
+            help="列出视频文件中的所有字幕轨道及其索引，用于选择要翻译的轨道"
         )
 
         return parser
@@ -331,6 +341,57 @@ class VideoTranslatorCLI:
         except Exception as e:
             print(f"❌ 获取视频信息失败: {e}")
             logger.error(f"获取视频信息失败: {e}")
+
+    def list_subtitle_tracks(self, video_path: Path):
+        """列出视频文件中的字幕轨道"""
+        try:
+            if not video_path.exists():
+                print(f"❌ 文件不存在: {video_path}")
+                return
+
+            if not is_video_file(video_path):
+                print(f"❌ 不是有效的视频文件: {video_path}")
+                return
+
+            print(f"字幕轨道列表: {video_path.name}")
+            print("=" * 60)
+
+            # 获取视频信息
+            video_info = self.video_processor.get_video_info(video_path)
+
+            if not video_info.subtitle_streams:
+                print("❌ 未检测到字幕轨道")
+                return
+
+            print(f"找到 {len(video_info.subtitle_streams)} 个字幕轨道:")
+            print()
+
+            for i, subtitle in enumerate(video_info.subtitle_streams):
+                print(f"轨道 {subtitle.index}:")
+                print(f"  标题: {subtitle.title}")
+                print(f"  语言: {subtitle.language}")
+                print(f"  编码: {subtitle.codec}")
+
+                flags = []
+                if subtitle.is_default:
+                    flags.append("默认")
+                if subtitle.is_forced:
+                    flags.append("强制")
+
+                if flags:
+                    print(f"  标记: {', '.join(flags)}")
+
+                print()
+
+            print("使用方法:")
+            print(f"  python cli.py -i \"{video_path}\" --subtitle-index <轨道索引> -o output.srt -l zh-CN")
+            print("  例如:")
+            for subtitle in video_info.subtitle_streams[:3]:  # 只显示前3个作为示例
+                print(f"    python cli.py -i \"{video_path}\" --subtitle-index {subtitle.index} -o output_{subtitle.language}.srt -l zh-CN")
+
+        except Exception as e:
+            print(f"❌ 获取字幕轨道信息失败: {e}")
+            logger.error(f"获取字幕轨道信息失败: {e}")
 
     def get_input_files(self, args) -> List[Path]:
         """获取输入文件列表"""
@@ -548,7 +609,11 @@ class VideoTranslatorCLI:
                 return 0
 
             if args.info:
-                self.show_video_info(args.info)
+                self.show_video_info(Path(args.info))
+                return 0
+
+            if args.list_subtitles:
+                self.list_subtitle_tracks(Path(args.list_subtitles))
                 return 0
 
             # 验证FFmpeg

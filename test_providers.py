@@ -92,15 +92,15 @@ class ProviderTester:
                 print(f"📄 译文: {result.translated_text}")
                 print(f"🕒 处理时间: {result.processing_time:.2f}秒")
                 print(f"🔧 使用模型: {result.model}")
-                if result.token_count:
-                    print(f"🪙 Token数量: {result.token_count}")
+                if result.token_usage and result.token_usage.get('total_tokens'):
+                    print(f"🪙 Token数量: {result.token_usage.get('total_tokens')}")
 
                 return {
                     'status': 'success',
                     'translated_text': result.translated_text,
                     'processing_time': result.processing_time,
                     'model': result.model,
-                    'token_count': result.token_count
+                    'token_count': result.token_usage.get('total_tokens', 0) if result.token_usage else 0
                 }
 
         except Exception as e:

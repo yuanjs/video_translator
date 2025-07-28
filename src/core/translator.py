@@ -463,7 +463,7 @@ class DeepSeekTranslator(BaseTranslator):
                 provider=self.provider.value,
                 model=model,
                 processing_time=processing_time,
-                token_count=response.usage.total_tokens if response.usage else 0
+                token_usage={'total_tokens': response.usage.total_tokens} if response.usage else {}
             )
 
         except Exception as e:
@@ -533,7 +533,7 @@ class OllamaTranslator(BaseTranslator):
                 provider=self.provider.value,
                 model=model,
                 processing_time=processing_time,
-                token_count=response.usage.total_tokens if response.usage else 0
+                token_usage={'total_tokens': response.usage.total_tokens} if response.usage else {}
             )
 
         except Exception as e:
@@ -602,7 +602,14 @@ class TranslationManager:
 
     def get_available_providers(self) -> List[TranslationProvider]:
         """获取可用的翻译提供商"""
-        return list(self.translators.keys())
+        available_providers = []
+        config = get_config()
+
+        for provider in self.translators.keys():
+            if config.validate_api_config(provider.value):
+                available_providers.append(provider)
+
+        return available_providers
 
     async def translate_text(self, text: str,
                            target_language: str = "zh-CN",
@@ -629,7 +636,8 @@ class TranslationManager:
                                     subtitle_file: SubtitleFile,
                                     target_language: str = "zh-CN",
                                     provider: Optional[TranslationProvider] = None,
-                                    progress_callback: Optional[Callable] = None) -> SubtitleFile:
+                                    progress_callback: Optional[Callable] = None,
+                                    cancellation_check: Optional[Callable[[], bool]] = None) -> SubtitleFile:
         """翻译字幕文件"""
         logger.info(f"开始翻译字幕文件，共 {len(subtitle_file.segments)} 个片段")
 
@@ -654,6 +662,11 @@ class TranslationManager:
         translated_segments = []
 
         for batch_index, batch in enumerate(batches):
+            # 检查是否请求取消
+            if cancellation_check and cancellation_check():
+                logger.info("翻译任务被取消")
+                break
+
             logger.info(f"处理批次 {batch_index + 1}/{len(batches)}")
 
             # 并发翻译批次中的片段
@@ -712,6 +725,11 @@ class TranslationManager:
                                     progress_info['progress']
                                 )
 
+                            # 检查是否请求取消
+                            if cancellation_check and cancellation_check():
+                                logger.info("翻译任务被取消")
+                                return None
+
                         except Exception as e:
                             logger.error(f"处理片段 {original_segment.index} 时出错: {e}")
                             original_segment.translated_text = original_segment.text
@@ -721,6 +739,15 @@ class TranslationManager:
             # 短暂延迟，避免API限速
             if batch_index < len(batches) - 1:
                 await asyncio.sleep(0.5)
+                # 再次检查是否请求取消
+                if cancellation_check and cancellation_check():
+                    logger.info("翻译任务被取消")
+                    break
+
+        # 检查是否请求取消
+        if cancellation_check and cancellation_check():
+            logger.info("翻译任务被取消")
+            return None
 
         # 按索引排序
         translated_segments.sort(key=lambda s: s.index)

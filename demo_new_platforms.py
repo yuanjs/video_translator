@@ -18,15 +18,15 @@ project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root / "src"))
 
 try:
-    from core.translator import (
+    from src.core.translator import (
         TranslationManager,
         TranslationProvider,
         TranslationRequest,
         DeepSeekTranslator,
         OllamaTranslator
     )
-    from utils.config import get_config
-    from utils.logger import get_logger
+    from src.utils.config import get_config
+    from src.utils.logger import get_logger
 except ImportError as e:
     print(f"❌ 导入模块失败: {e}")
     print("请确保已安装所有依赖: pip install -r requirements.txt")
@@ -73,8 +73,8 @@ class NewPlatformsDemo:
         print(f"⚡ 处理时间: {duration:.2f}秒")
         print(f"🔧 使用模型: {result.model}")
 
-        if result.token_count:
-            print(f"🪙 Token消耗: {result.token_count}")
+        if result.token_usage and result.token_usage.get('total_tokens'):
+            print(f"🪙 Token消耗: {result.token_usage.get('total_tokens')}")
 
         if result.error:
             print(f"❌ 错误: {result.error}")
@@ -205,7 +205,7 @@ class NewPlatformsDemo:
                     'translation': result.translated_text,
                     'time': time.time() - start_time,
                     'model': result.model,
-                    'tokens': result.token_count,
+                    'tokens': result.token_usage.get('total_tokens', 0) if result.token_usage else 0,
                     'error': result.error
                 }
 

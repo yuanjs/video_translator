@@ -161,6 +161,7 @@ class VideoTranslatorGUI:
         file_menu = tk.Menu(menubar, tearoff=0)
         menubar.add_cascade(label="文件", menu=file_menu)
         file_menu.add_command(label="打开视频文件", command=self.select_video_files)
+        file_menu.add_command(label="打开字幕文件", command=self.select_subtitle_files)
         file_menu.add_command(label="打开文件夹", command=self.select_directory)
         file_menu.add_separator()
         file_menu.add_command(label="退出", command=self.on_closing)
@@ -203,17 +204,31 @@ class VideoTranslatorGUI:
     def create_left_panel(self, parent):
         """创建左侧面板"""
         # 文件选择区域
-        file_frame = ttk.LabelFrame(parent, text="文件选择", padding="10")
+        # 文件区域
+        file_frame = ttk.LabelFrame(parent, text="文件列表", padding="10")
         file_frame.pack(fill="x", pady=(0, 10))
 
         # 按钮行
         button_frame = ttk.Frame(file_frame)
         button_frame.pack(fill="x", pady=(0, 10))
 
+        # 添加删除按钮
+        ttk.Button(
+            button_frame,
+            text="清空列表",
+            command=self.clear_file_list
+        ).pack(side="right")
+
         ttk.Button(
             button_frame,
             text="选择视频文件",
             command=self.select_video_files
+        ).pack(side="left", padx=(0, 5))
+
+        ttk.Button(
+            button_frame,
+            text="选择字幕文件",
+            command=self.select_subtitle_files
         ).pack(side="left", padx=(0, 5))
 
         ttk.Button(
@@ -268,7 +283,15 @@ class VideoTranslatorGUI:
         ttk.Label(row1, text="AI提供商:").pack(side="left")
         self.provider_var = tk.StringVar(value=self.config.get('translation.provider', 'openai'))
         provider_combo = ttk.Combobox(row1, textvariable=self.provider_var, state="readonly", width=15)
-        provider_combo['values'] = [p.value for p in self.translation_manager.get_available_providers()]
+
+        # 获取有效的翻译提供商
+        available_providers = self.config.get_available_providers()
+
+        # 如果没有有效的提供商，提示用户
+        if not available_providers:
+            available_providers = ['请先配置API密钥']
+
+        provider_combo['values'] = available_providers
         provider_combo.pack(side="left", padx=(5, 10))
 
         ttk.Label(row1, text="模型:").pack(side="left")
@@ -303,7 +326,26 @@ class VideoTranslatorGUI:
         ttk.Checkbutton(row3, text="双语字幕", variable=self.bilingual_var).pack(side="left")
 
         self.extract_all_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(row3, text="提取所有字幕轨道", variable=self.extract_all_var).pack(side="left", padx=(20, 0))
+        extract_all_cb = ttk.Checkbutton(row3, text="提取所有字幕轨道", variable=self.extract_all_var)
+        extract_all_cb.pack(side="left", padx=(20, 0))
+        extract_all_cb.bind("<Button-1>", self.on_extract_all_change)
+
+        # 字幕轨道选择
+        row4 = ttk.Frame(parent)
+        row4.pack(fill="x", pady=(5, 5))
+
+        ttk.Label(row4, text="选择字幕轨道:").pack(side="left")
+        self.subtitle_track_var = tk.StringVar()
+        self.subtitle_track_combo = ttk.Combobox(
+            row4,
+            textvariable=self.subtitle_track_var,
+            state="readonly",
+            width=40
+        )
+        self.subtitle_track_combo.pack(side="left", padx=(10, 0))
+
+        # 初始状态下禁用轨道选择器
+        self.subtitle_track_combo.config(state="disabled")
 
         # 绑定提供商变化事件
         provider_combo.bind("<<ComboboxSelected>>", self.on_provider_change)
@@ -316,15 +358,18 @@ class VideoTranslatorGUI:
             control_frame,
             text="开始翻译",
             command=self.start_translation,
-            style="Accent.TButton"
+            style="Accent.TButton",
+            width=15,
+            state="disabled"  # 初始状态为禁用
         )
         self.start_button.pack(side="left", padx=(0, 10))
 
         self.stop_button = ttk.Button(
             control_frame,
-            text="停止",
+            text="停止翻译",
             command=self.stop_translation,
-            state="disabled"
+            state="disabled",
+            width=15
         )
         self.stop_button.pack(side="left")
 
@@ -419,6 +464,24 @@ class VideoTranslatorGUI:
             if models:
                 self.model_var.set(models[0])
 
+        # 更新按钮状态
+        self.update_button_states()
+
+    def on_extract_all_change(self, event=None):
+        """处理提取所有字幕轨道选项变化"""
+        # 延迟处理，因为这是在点击事件之前触发的
+        self.root.after(10, self._handle_extract_all_change)
+
+    def _handle_extract_all_change(self):
+        """实际处理提取所有字幕轨道选项变化"""
+        if self.extract_all_var.get():
+            # 如果选择提取所有轨道，禁用单轨道选择
+            self.subtitle_track_combo.config(state="disabled")
+        else:
+            # 如果不提取所有轨道，根据是否有轨道信息来启用单轨道选择
+            if self.subtitle_track_combo['values']:
+                self.subtitle_track_combo.config(state="readonly")
+
     def select_video_files(self):
         """选择视频文件"""
         initial_dir = self.config.get_last_used_dir()
@@ -445,6 +508,54 @@ class VideoTranslatorGUI:
                     self.selected_files.append(path)
 
             self.update_file_list()
+            self.update_button_states()
+
+    def select_subtitle_files(self):
+        """选择字幕文件"""
+        self.clear_video_info()
+        initial_dir = self.config.get_last_used_dir()
+
+        filetypes = [
+            ("字幕文件", "*.srt *.vtt *.ass *.ssa *.sub"),
+            ("所有文件", "*.*")
+        ]
+
+        files = filedialog.askopenfilenames(
+            title="选择字幕文件",
+            initialdir=initial_dir,
+            filetypes=filetypes
+        )
+
+        if files:
+            # 更新最后使用的目录
+            self.config.update_last_used_dir(str(Path(files[0]).parent))
+
+            # 添加文件到列表
+            for file_path in files:
+                path = Path(file_path)
+                if path.suffix.lower() in ['.srt', '.vtt', '.ass', '.ssa', '.sub'] and path not in self.selected_files:
+                    self.selected_files.append(path)
+
+            self.update_file_list()
+            self.update_button_states()
+
+            # 如果是字幕文件，不需要显示字幕轨道选择器
+            self.subtitle_track_combo.config(state="disabled")
+            self.extract_all_var.set(False)
+
+            # 如果只选择了一个字幕文件，显示详细信息
+            if len(self.selected_files) == 1 and self.selected_files[0].suffix.lower() in ['.srt', '.vtt', '.ass', '.ssa', '.sub']:
+                self.show_subtitle_file_info(self.selected_files[0])
+            else:
+                # 更新信息面板显示多个文件
+                self.info_text.config(state="normal")
+                self.info_text.delete(1.0, tk.END)
+                self.info_text.insert(tk.END, f"已选择字幕文件: {len(self.selected_files)}个\n\n")
+                for file in self.selected_files:
+                    self.info_text.insert(tk.END, f"- {file.name}\n")
+                self.info_text.config(state="disabled")
+
+            self.update_button_states()
 
     def select_directory(self):
         """选择目录"""
@@ -466,6 +577,7 @@ class VideoTranslatorGUI:
                     self.selected_files.append(file_path)
 
             self.update_file_list()
+            self.update_button_states()
 
             messagebox.showinfo(
                 "信息",
@@ -476,13 +588,72 @@ class VideoTranslatorGUI:
         """清除文件列表"""
         self.selected_files.clear()
         self.update_file_list()
+        self.update_button_states()
         self.clear_video_info()
 
+    def show_subtitle_file_info(self, subtitle_path: Path):
+        """显示字幕文件信息"""
+        try:
+            # 加载字幕文件
+            subtitle_file = self.subtitle_extractor.load_subtitle_file(subtitle_path)
+
+            if not subtitle_file or len(subtitle_file.segments) == 0:
+                self.info_text.config(state="normal")
+                self.info_text.delete(1.0, tk.END)
+                self.info_text.insert(tk.END, f"字幕文件: {subtitle_path.name}\n\n")
+                self.info_text.insert(tk.END, "❌ 无法加载字幕或文件为空")
+                self.info_text.config(state="disabled")
+                return
+
+            # 获取字幕统计信息
+            stats = self.subtitle_extractor.get_subtitle_statistics(subtitle_file)
+
+            # 更新信息面板
+            self.info_text.config(state="normal")
+            self.info_text.delete(1.0, tk.END)
+
+            self.info_text.insert(tk.END, f"字幕文件: {subtitle_path.name}\n")
+            self.info_text.insert(tk.END, f"格式: {subtitle_path.suffix[1:].upper()}\n")
+            self.info_text.insert(tk.END, f"编码: {subtitle_file.encoding}\n")
+            self.info_text.insert(tk.END, f"语言: {subtitle_file.language or '未知'}\n")
+            self.info_text.insert(tk.END, f"文件大小: {format_file_size(subtitle_path.stat().st_size)}\n")
+            self.info_text.insert(tk.END, f"行数: {len(subtitle_file.segments)}\n")
+            self.info_text.insert(tk.END, f"时长: {format_duration(stats['duration'])}\n")
+            self.info_text.insert(tk.END, f"字符数: {stats['character_count']}\n")
+            self.info_text.insert(tk.END, f"单词数: {stats['word_count']}\n\n")
+
+            # 显示部分字幕内容预览
+            self.info_text.insert(tk.END, "字幕预览:\n")
+            self.info_text.insert(tk.END, "----------------------------------------\n")
+
+            # 显示前5条字幕
+            preview_count = min(5, len(subtitle_file.segments))
+            for i in range(preview_count):
+                segment = subtitle_file.segments[i]
+                self.info_text.insert(tk.END, f"{segment.start_time:.2f} → {segment.end_time:.2f}\n")
+                self.info_text.insert(tk.END, f"{segment.text}\n\n")
+
+            if len(subtitle_file.segments) > 5:
+                self.info_text.insert(tk.END, f"... 共 {len(subtitle_file.segments)} 条字幕 ...\n")
+
+            self.info_text.config(state="disabled")
+
+        except Exception as e:
+            self.info_text.config(state="normal")
+            self.info_text.delete(1.0, tk.END)
+            self.info_text.insert(tk.END, f"字幕文件: {subtitle_path.name}\n\n")
+            self.info_text.insert(tk.END, f"❌ 无法加载字幕文件: {str(e)}")
+            self.info_text.config(state="disabled")
+            logger.error(f"加载字幕文件 {subtitle_path.name} 失败: {e}")
+
     def update_file_list(self):
-        """更新文件列表显示"""
-        # 清除现有项目
+        """更新文件列表"""
+        # 清空列表
         for item in self.file_tree.get_children():
             self.file_tree.delete(item)
+
+        # 清除上次的视频信息
+        self.current_video_info = None
 
         # 添加文件
         for file_path in self.selected_files:
@@ -561,10 +732,27 @@ class VideoTranslatorGUI:
 
         if video_info.subtitle_streams:
             info_text += "\n字幕轨道详情:\n"
+            # 构建字幕轨道选择列表
+            track_options = []
             for i, subtitle in enumerate(video_info.subtitle_streams):
                 info_text += f"  轨道 {i+1}: {subtitle.title} ({subtitle.language}, {subtitle.codec})\n"
+                # 为下拉框准备选项
+                track_display = f"轨道 {subtitle.index}: {subtitle.title} ({subtitle.language}, {subtitle.codec})"
+                track_options.append(track_display)
+
+            # 更新字幕轨道选择下拉框
+            self.subtitle_track_combo['values'] = track_options
+            if track_options:
+                self.subtitle_track_var.set(track_options[0])  # 默认选择第一个轨道
+                # 如果没有选择提取所有轨道，则启用轨道选择
+                if not self.extract_all_var.get():
+                    self.subtitle_track_combo.config(state="readonly")
         else:
             info_text += "\n未检测到字幕轨道\n"
+            # 清空并禁用字幕轨道选择
+            self.subtitle_track_combo['values'] = []
+            self.subtitle_track_var.set("")
+            self.subtitle_track_combo.config(state="disabled")
 
         self.info_text.insert(tk.END, info_text)
         self.info_text.config(state="disabled")
@@ -581,16 +769,27 @@ class VideoTranslatorGUI:
         self.info_text.config(state="normal")
         self.info_text.delete(1.0, tk.END)
         self.info_text.config(state="disabled")
+
+        # 清空字幕轨道选择
+        self.subtitle_track_combo['values'] = []
+        self.subtitle_track_var.set("")
+        self.subtitle_track_combo.config(state="disabled")
         self.current_video_info = None
 
     def start_translation(self):
         """开始翻译"""
         if not self.selected_files:
-            messagebox.showwarning("警告", "请先选择视频文件")
+            messagebox.showwarning("警告", "请先选择需要翻译的文件")
             return
 
-        if self.translation_thread and self.translation_thread.is_alive():
-            messagebox.showwarning("警告", "翻译正在进行中")
+        provider_str = self.provider_var.get()
+        if not provider_str or provider_str == '请先配置API密钥':
+            messagebox.showwarning("警告", "请先配置API密钥并选择翻译提供商")
+            return
+
+        # 验证API配置
+        if not self.config.validate_api_config(provider_str):
+            messagebox.showwarning("警告", f"'{provider_str}' 提供商的API密钥无效或未配置，请检查api_keys.yaml文件")
             return
 
         # 获取设置
@@ -625,39 +824,115 @@ class VideoTranslatorGUI:
                           output_format: str, bilingual: bool, extract_all: bool):
         """翻译工作线程"""
         try:
+            # 重置停止标志
+            self._stop_translation = False
+            self.progress_var.set(0)
             total_files = len(self.selected_files)
+            completed = True
+            processed_files = []
 
             for i, file_path in enumerate(self.selected_files):
                 if hasattr(self, '_stop_translation') and self._stop_translation:
+                    logger.info("翻译被用户停止")
+                    completed = False
                     break
 
                 # 更新进度
                 progress = (i / total_files) * 100
-                self.root.after(0, lambda p=progress: self.update_progress(p, f"处理文件 {i+1}/{total_files}"))
+                self.root.after(0, lambda p=progress: self.update_progress(p, f"处理文件 {i+1}/{total_files}: {file_path.name}"))
 
                 # 处理单个文件
-                self.process_single_file(file_path, provider_str, target_lang, output_format, bilingual, extract_all)
+                try:
+                    # 判断是字幕文件还是视频文件
+                    if file_path.suffix.lower() in ['.srt', '.vtt', '.ass', '.ssa', '.sub']:
+                        # 直接翻译字幕文件
+                        output_path = self.process_subtitle_file(file_path, provider_str, target_lang, output_format, bilingual)
+                        if output_path and output_path.exists():
+                            processed_files.append(output_path)
+                    else:
+                        # 处理视频文件
+                        output_paths = self.process_single_file(file_path, provider_str, target_lang, output_format, bilingual, extract_all)
+                        if output_paths:
+                            processed_files.extend(output_paths)
+                except Exception as e:
+                    logger.error(f"处理文件 {file_path.name} 时出错: {e}")
+                    if hasattr(self, '_stop_translation') and self._stop_translation:
+                        completed = False
+                        break
 
-            # 完成
-            self.root.after(0, lambda: self.translation_completed())
+            # 完成或取消
+            if completed:
+                self.root.after(0, lambda processed=processed_files: self.translation_completed(processed))
+            else:
+                self.root.after(0, lambda processed=processed_files: self.translation_cancelled(processed))
 
         except Exception as e:
             error_msg = f"翻译过程中发生错误: {e}"
             logger.error(error_msg)
             self.root.after(0, lambda: self.translation_error(error_msg))
 
+    def process_subtitle_file(self, subtitle_path: Path, provider_str: str, target_lang: str,
+                             output_format: str, bilingual: bool):
+        """处理字幕文件"""
+        try:
+            logger.info(f"开始处理字幕文件: {subtitle_path.name}")
+            self.update_progress(0, f"处理字幕文件: {subtitle_path.name}")
+
+            # 检查文件是否存在
+            if not subtitle_path.exists():
+                raise FileNotFoundError(f"字幕文件不存在: {subtitle_path}")
+
+            # 加载字幕文件
+            try:
+                subtitle_file = self.subtitle_extractor.load_subtitle_file(subtitle_path)
+                if not subtitle_file or len(subtitle_file.segments) == 0:
+                    logger.warning(f"字幕文件为空或格式不支持: {subtitle_path.name}")
+                    return None
+            except Exception as e:
+                logger.error(f"加载字幕文件失败: {e}")
+                raise ValueError(f"无法加载字幕文件: {e}")
+
+            # 获取字幕统计信息
+            stats = self.subtitle_extractor.get_subtitle_statistics(subtitle_file)
+            logger.info(f"已加载字幕文件: {subtitle_path.name}，包含 {len(subtitle_file.segments)} 个片段，"
+                        f"总时长: {format_duration(stats['duration'])}，"
+                        f"字符数: {stats['character_count']}，单词数: {stats['word_count']}")
+
+            # 更新进度详情
+            self.update_progress(0, f"字幕文件: {subtitle_path.name}，{len(subtitle_file.segments)}个片段，{format_duration(stats['duration'])}")
+
+            # 生成输出路径
+            output_base = subtitle_path.parent / f"{subtitle_path.stem}_{target_lang}"
+
+            # 直接翻译字幕文件
+            output_path = self.translate_subtitle_file(
+                subtitle_path,
+                output_base,  # 创建新的输出路径
+                provider_str,
+                target_lang,
+                output_format,
+                bilingual
+            )
+
+            return output_path
+
+        except Exception as e:
+            logger.error(f"处理字幕文件 {subtitle_path.name} 失败: {e}")
+            raise
+
     def process_single_file(self, file_path: Path, provider_str: str, target_lang: str,
                            output_format: str, bilingual: bool, extract_all: bool):
-        """处理单个文件"""
+        """处理单个视频文件"""
         try:
-            logger.info(f"开始处理文件: {file_path.name}")
+            logger.info(f"开始处理视频文件: {file_path.name}")
+            output_paths = []
 
             # 获取视频信息
             video_info = self.video_processor.get_video_info(file_path)
 
             if not video_info.subtitle_streams:
                 logger.warning(f"文件 {file_path.name} 没有字幕轨道")
-                return
+                return output_paths
 
             # 提取字幕
             if extract_all:
@@ -665,23 +940,67 @@ class VideoTranslatorGUI:
                 extracted_subtitles = self.video_processor.extract_all_subtitles(
                     file_path, output_format='srt'
                 )
+                logger.info(f"提取了 {len(extracted_subtitles)} 个字幕轨道")
             else:
-                # 提取第一个字幕轨道
-                subtitle_path = self.video_processor.extract_subtitle(
-                    file_path, subtitle_index=video_info.subtitle_streams[0].index
-                )
-                extracted_subtitles = {0: subtitle_path} if subtitle_path else {}
+                # 提取选定的字幕轨道
+                selected_track_index = self._get_selected_subtitle_track_index(video_info)
+                if selected_track_index is not None:
+                    logger.info(f"提取选定的字幕轨道: {selected_track_index}")
+                    subtitle_path = self.video_processor.extract_subtitle(
+                        file_path, subtitle_index=selected_track_index
+                    )
+                    extracted_subtitles = {selected_track_index: subtitle_path} if subtitle_path else {}
+                else:
+                    # 如果没有选择或选择无效，使用第一个轨道
+                    logger.info(f"使用第一个字幕轨道: {video_info.subtitle_streams[0].index}")
+                    subtitle_path = self.video_processor.extract_subtitle(
+                        file_path, subtitle_index=video_info.subtitle_streams[0].index
+                    )
+                    extracted_subtitles = {0: subtitle_path} if subtitle_path else {}
+
+            # 更新进度详情
+            track_count = len(extracted_subtitles)
+            self.update_progress(0, f"从视频中提取了 {track_count} 个字幕轨道")
 
             # 翻译每个字幕文件
-            for subtitle_index, subtitle_path in extracted_subtitles.items():
+            for i, (subtitle_index, subtitle_path) in enumerate(extracted_subtitles.items()):
                 if subtitle_path and subtitle_path.exists():
-                    self.translate_subtitle_file(
+                    # 更新进度
+                    track_progress = (i / track_count) * 100
+                    self.update_progress(track_progress, f"翻译字幕轨道 {i+1}/{track_count}: {subtitle_path.name}")
+
+                    # 翻译字幕
+                    output_path = self.translate_subtitle_file(
                         subtitle_path, file_path, provider_str, target_lang,
                         output_format, bilingual
                     )
 
+                    if output_path and output_path.exists():
+                        output_paths.append(output_path)
+
+            return output_paths
+
         except Exception as e:
             logger.error(f"处理文件 {file_path.name} 失败: {e}")
+            raise
+
+    def _get_selected_subtitle_track_index(self, video_info) -> Optional[int]:
+        """获取选定的字幕轨道索引"""
+        selected_track = self.subtitle_track_var.get()
+        if not selected_track:
+            return None
+
+        try:
+            # 从选择的文本中提取轨道索引
+            # 格式: "轨道 X: 标题 (语言, 编码)"
+            import re
+            match = re.match(r'轨道 (\d+):', selected_track)
+            if match:
+                return int(match.group(1))
+        except (ValueError, AttributeError):
+            pass
+
+        return None
 
     def translate_subtitle_file(self, subtitle_path: Path, video_path: Path,
                                provider_str: str, target_lang: str,
@@ -691,6 +1010,10 @@ class VideoTranslatorGUI:
             # 加载字幕
             subtitle_file = self.subtitle_extractor.load_subtitle_file(subtitle_path)
 
+            # 获取字幕统计信息用于显示
+            stats = self.subtitle_extractor.get_subtitle_statistics(subtitle_file)
+            self.update_progress(0, f"正在翻译 {len(subtitle_file.segments)} 个片段，共 {format_duration(stats['duration'])} 时长")
+
             # 创建异步事件循环
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -698,14 +1021,24 @@ class VideoTranslatorGUI:
             try:
                 # 执行翻译
                 provider = TranslationProvider(provider_str)
-                translated_file = loop.run_until_complete(
-                    self.translation_manager.translate_subtitle_file(
-                        subtitle_file,
-                        target_lang,
-                        provider,
-                        progress_callback=self.translation_progress_callback
+                try:
+                    translated_file = loop.run_until_complete(
+                        self.translation_manager.translate_subtitle_file(
+                            subtitle_file,
+                            target_lang,
+                            provider,
+                            progress_callback=self.translation_progress_callback,
+                            cancellation_check=lambda: hasattr(self, '_stop_translation') and self._stop_translation
+                        )
                     )
-                )
+                except asyncio.CancelledError:
+                    logger.info("翻译过程被取消")
+                    return None
+
+                # 如果翻译被取消，直接返回
+                if not translated_file:
+                    logger.info("翻译被取消，跳过保存")
+                    return None
 
                 # 保存翻译结果
                 output_filename = self.subtitle_writer.get_output_filename(
@@ -721,12 +1054,16 @@ class VideoTranslatorGUI:
                 )
 
                 logger.info(f"翻译完成: {output_path}")
+                self.update_progress(100, f"翻译完成: {output_path.name}")
+
+                return output_path
 
             finally:
                 loop.close()
 
         except Exception as e:
             logger.error(f"翻译字幕文件失败: {e}")
+            raise
 
     def translation_progress_callback(self, current: int, total: int, progress: float):
         """翻译进度回调"""
@@ -735,29 +1072,63 @@ class VideoTranslatorGUI:
 
     def stop_translation(self):
         """停止翻译"""
-        self._stop_translation = True
-        self.start_button.config(state="normal")
+        if not hasattr(self, '_stop_translation'):
+            self._stop_translation = True
+        else:
+            self._stop_translation = True
+
+        self.start_button.config(state="disabled")  # 暂时禁用，等待线程终止
+        self.stop_button.config(state="disabled")
+        self.progress_label.config(text="正在停止...")
+        self.progress_detail.set("正在取消当前任务，请稍候...")
+        self.root.update_idletasks()  # 立即更新UI
+        logger.info("正在停止翻译...")
+
+    def translation_cancelled(self, processed_files=None):
+        """翻译被取消"""
         self.stop_button.config(state="disabled")
         self.progress_label.config(text="已取消")
+        self.progress_detail.set("翻译已被用户取消")
         logger.info("翻译已取消")
 
-    def translation_completed(self):
+        # 显示取消消息
+        if processed_files and len(processed_files) > 0:
+            msg = f"翻译任务已取消，但已成功处理 {len(processed_files)} 个文件"
+            messagebox.showinfo("已部分完成", msg)
+        else:
+            messagebox.showinfo("已取消", "翻译任务已取消")
+
+        # 更新按钮状态
+        self.update_button_states()
+
+    def translation_completed(self, processed_files=None):
         """翻译完成"""
-        self.start_button.config(state="normal")
         self.stop_button.config(state="disabled")
         self.progress_var.set(100)
         self.progress_label.config(text="翻译完成")
 
-        messagebox.showinfo("完成", "所有文件翻译完成！")
-        logger.info("翻译任务完成")
+        if processed_files and len(processed_files) > 0:
+            # 生成输出文件列表消息
+            if len(processed_files) == 1:
+                msg = f"翻译完成！已生成文件：\n{processed_files[0].name}"
+                # 询问是否打开文件夹
+                if messagebox.askyesno("完成", f"{msg}\n\n是否打开输出文件夹？"):
+                    self.open_file_location(processed_files[0].parent)
+            else:
+                msg = f"所有文件翻译完成！共生成 {len(processed_files)} 个输出文件。"
+                # 询问是否打开文件夹
+                if messagebox.askyesno("完成", f"{msg}\n\n是否打开输出文件夹？"):
+                    self.open_file_location(processed_files[0])
 
     def translation_error(self, error_msg: str):
         """翻译错误"""
-        self.start_button.config(state="normal")
         self.stop_button.config(state="disabled")
         self.progress_label.config(text="发生错误")
 
         messagebox.showerror("错误", error_msg)
+
+        # 更新按钮状态
+        self.update_button_states()
 
     def update_progress(self, progress: float, detail: str = ""):
         """更新进度"""
@@ -936,6 +1307,35 @@ CPU核心数: {system_info.get('cpu_count', 'Unknown')}
                 self.root.quit()
         else:
             self.root.quit()
+
+    def clear_file_list(self):
+        """清空文件列表"""
+        if self.selected_files:
+            if messagebox.askyesno("确认", "确定要清空所有已选择的文件吗？"):
+                self.selected_files.clear()
+                self.update_file_list()
+                self.clear_video_info()
+
+    def update_button_states(self):
+        """更新按钮状态"""
+        # 检查是否有选择的文件
+        if self.selected_files and len(self.selected_files) > 0:
+            # 检查是否有可用的翻译提供商
+            available_providers = self.config.get_available_providers()
+            if available_providers and self.provider_var.get() in available_providers:
+                # 检查翻译线程是否在运行
+                if hasattr(self, 'translation_thread') and self.translation_thread and self.translation_thread.is_alive():
+                    self.start_button.config(state="disabled")
+                    self.stop_button.config(state="normal")
+                else:
+                    self.start_button.config(state="normal")
+                    self.stop_button.config(state="disabled")
+            else:
+                self.start_button.config(state="disabled")
+                self.stop_button.config(state="disabled")
+        else:
+            self.start_button.config(state="disabled")
+            self.stop_button.config(state="disabled")
 
     def run(self):
         """运行应用"""

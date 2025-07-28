@@ -1,210 +1,102 @@
-# 视频翻译器配置文件
-# Video Translator Configuration File
-
-# 翻译设置
-translation:
-  # 默认目标语言 (ISO 639-1 语言代码)
-  target_language: "zh-CN"
-
-  # 默认翻译提供商 (openai, anthropic, google, azure, deepseek, ollama)
-  provider: "openai"
-
-  # 默认模型
-  model: "gpt-3.5-turbo"
-
-  # 输出格式 (bilingual: 双语, monolingual: 单语)
-  output_format: "bilingual"
-
-  # 最大token数
-  max_tokens: 2000
-
-  # 温度参数 (0.0-1.0, 越低越准确)
-  temperature: 0.3
-
-  # 批量翻译大小
-  batch_size: 10
-
-  # 重试次数
-  retry_count: 3
-
-  # 超时时间 (秒)
-  timeout: 30
-
-# 字幕设置
-subtitle:
-  # 每行最大字符数
-  max_chars_per_line: 50
-
-  # 最大行数
-  max_lines: 2
-
-  # 时间同步容差 (秒)
-  sync_tolerance: 0.1
-
-  # 文件编码
-  encoding: "utf-8"
-
-  # 支持的字幕格式
-  formats:
-    - "srt"
-    - "vtt"
-    - "ass"
-
-  # 自动检测语言
-  auto_detect_language: true
-
-  # 合并短片段
-  merge_short_segments: true
-
-  # 最小片段持续时间 (秒)
-  min_segment_duration: 1.0
-
-  # ASS字幕样式设置
-  ass_style:
-    font_name: "Arial"
-    font_size: 20
-    primary_color: "&H00FFFFFF"
-    secondary_color: "&H000000FF"
-    outline_color: "&H00000000"
-    back_color: "&H80000000"
-
-# 视频设置
-video:
-  # 支持的视频格式
-  supported_formats:
-    - ".mp4"
-    - ".avi"
-    - ".mkv"
-    - ".mov"
-    - ".wmv"
-    - ".flv"
-    - ".webm"
-    - ".m4v"
-
-  # FFmpeg路径 (留空使用系统PATH中的ffmpeg)
-  ffmpeg_path: "ffmpeg"
-
-  # 是否提取音频
-  extract_audio: false
-
-  # 音频格式
-  audio_format: "wav"
-
-  # 音频采样率
-  audio_sample_rate: 16000
-
-# 界面设置
-ui:
-  # 界面主题
-  theme: "arc"
-
-  # 界面语言
-  language: "zh_CN"
-
-  # 窗口大小
-  window_size: "1200x800"
-
-  # 记住最后使用的目录
-  remember_last_dir: true
-
-  # 最后使用的目录
-  last_used_dir: ""
-
-  # 自动保存配置
-  auto_save_config: true
-
-  # 显示进度详情
-  show_progress_details: true
-
-# API配置
 api:
-  # OpenAI配置
-  openai:
-    base_url: "https://api.openai.com/v1"
-    models:
-      - "gpt-3.5-turbo"
-      - "gpt-4"
-      - "gpt-4-turbo-preview"
-
-  # Anthropic配置
   anthropic:
-    base_url: "https://api.anthropic.com"
+    base_url: https://api.anthropic.com
     models:
-      - "claude-3-sonnet-20240229"
-      - "claude-3-opus-20240229"
-      - "claude-3-haiku-20240307"
-
-  # Google配置
-  google:
-    project_id: null
-    location: "global"
-
-  # Azure配置
+    - claude-3-sonnet-20240229
+    - claude-3-opus-20240229
+    - claude-3-haiku-20240307
   azure:
     endpoint: null
-    region: "eastus"
-
-  # DeepSeek配置
+    region: eastus
   deepseek:
-    base_url: "https://api.deepseek.com/v1"
+    base_url: https://api.deepseek.com/v1
     models:
-      - "deepseek-chat"
-      - "deepseek-coder"
-
-  # Ollama配置 (本地部署)
+    - deepseek-chat
+    - deepseek-coder
+  google:
+    location: global
+    project_id: null
   ollama:
-    base_url: "http://localhost:11434/v1"
+    base_url: http://localhost:11434/v1
     models:
-      - "llama2"
-      - "llama2:13b"
-      - "llama2:70b"
-      - "codellama"
-      - "codellama:13b"
-      - "mistral"
-      - "mixtral"
-      - "qwen"
-      - "gemma"
-
-# 输出设置
-output:
-  # 默认输出目录
-  default_dir: "./output"
-
-  # 文件名模板
-  # 可用变量: {original_name}, {lang}, {format}
-  filename_template: "{original_name}_{lang}_{format}"
-
-  # 创建备份文件
-  create_backup: true
-
-  # 覆盖已存在的文件
-  overwrite_existing: false
-
-# 日志设置
+    - llama2
+    - llama2:13b
+    - llama2:70b
+    - codellama
+    - codellama:13b
+    - mistral
+    - mixtral
+    - qwen
+    - gemma
+  openai:
+    base_url: https://api.openai.com/v1
+    models:
+    - gpt-3.5-turbo
+    - gpt-4
+    - gpt-4-turbo-preview
 logging:
-  # 日志级别 (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-  level: "INFO"
-
-  # 日志文件路径
-  file: "logs/app.log"
-
-  # 日志文件最大大小
-  max_size: "10MB"
-
-  # 备份文件数量
   backup_count: 5
-
-  # 日志格式
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-
-  # 控制台日志格式
-  console_format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-
-  # 启用控制台输出
-  enable_console: true
-
-  # 启用文件输出
-  enable_file: true
-
-  # 启用颜色输出
+  console_format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
   enable_colors: true
+  enable_console: true
+  enable_file: true
+  file: logs/app.log
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  level: INFO
+  max_size: 10MB
+output:
+  create_backup: true
+  default_dir: ./output
+  filename_template: '{original_name}_{lang}_{format}'
+  overwrite_existing: false
+subtitle:
+  ass_style:
+    back_color: '&H80000000'
+    font_name: Arial
+    font_size: 20
+    outline_color: '&H00000000'
+    primary_color: '&H00FFFFFF'
+    secondary_color: '&H000000FF'
+  auto_detect_language: true
+  encoding: utf-8
+  formats:
+  - srt
+  - vtt
+  - ass
+  max_chars_per_line: 50
+  max_lines: 2
+  merge_short_segments: true
+  min_segment_duration: 1.0
+  sync_tolerance: 0.1
+translation:
+  batch_size: 10
+  max_tokens: 2000
+  model: gpt-3.5-turbo
+  output_format: bilingual
+  provider: openai
+  retry_count: 3
+  target_language: zh-CN
+  temperature: 0.3
+  timeout: 30
+ui:
+  auto_save_config: true
+  language: zh_CN
+  last_used_dir: /mnt/diskd/media/tv
+  remember_last_dir: true
+  show_progress_details: true
+  theme: arc
+  window_size: 1200x800
+video:
+  audio_format: wav
+  audio_sample_rate: 16000
+  extract_audio: false
+  ffmpeg_path: ffmpeg
+  supported_formats:
+  - .mp4
+  - .avi
+  - .mkv
+  - .mov
+  - .wmv
+  - .flv
+  - .webm
+  - .m4v
